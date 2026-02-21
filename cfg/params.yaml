@@ -40,7 +40,7 @@
     odom/submap/keyframe/knn: 10
     odom/submap/keyframe/kcv: 10
     odom/submap/keyframe/kcc: 10
-    odom/gicp/minNumPoints: 64
+    odom/gicp/minNumPoints: 48
     odom/gicp/kCorrespondences: 16
     odom/gicp/maxCorrespondenceDistance: 0.5
     odom/gicp/maxIterations: 32
