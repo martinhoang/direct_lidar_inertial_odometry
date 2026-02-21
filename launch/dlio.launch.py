@@ -10,7 +10,7 @@
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.conditions import IfCondition   
+from launch.conditions import IfCondition, UnlessCondition   
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -22,11 +22,14 @@ def generate_launch_description():
     rviz = LaunchConfiguration('rviz', default='false')
     pointcloud_topic = LaunchConfiguration('pointcloud_topic', default='points_raw')
     imu_topic = LaunchConfiguration('imu_topic', default='imu_raw')
+    verbose = LaunchConfiguration('verbose', default='false')
+    log_level = LaunchConfiguration('log_level')
 
     # Define arguments
     declare_rviz_arg = DeclareLaunchArgument(
         'rviz',
-        default_value=rviz,
+        default_value='false',
+        choices=['true', 'false'],
         description='Launch RViz'
     )
     declare_pointcloud_topic_arg = DeclareLaunchArgument(
@@ -39,17 +42,29 @@ def generate_launch_description():
         default_value=imu_topic,
         description='IMU topic name'
     )
+    declare_verbose_arg = DeclareLaunchArgument(
+        'verbose',
+        default_value='false',
+        choices=['true', 'false'],
+        description='Enable verbose output to screen (default: silent/log)'
+    )
+    declare_log_level_arg = DeclareLaunchArgument(
+        'log_level',
+        default_value='WARN',
+        choices=['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'],
+        description='Log level for nodes'
+    )
 
     # Load parameters
     dlio_yaml_path = PathJoinSubstitution([current_pkg, 'cfg', 'dlio.yaml'])
     dlio_params_yaml_path = PathJoinSubstitution([current_pkg, 'cfg', 'params.yaml'])
 
-    # DLIO Odometry Node
-    dlio_odom_node = Node(
+    # DLIO Odometry Node (verbose)
+    dlio_odom_node_verbose = Node(
         package='direct_lidar_inertial_odometry',
         executable='dlio_odom_node',
         output='screen',
-        parameters=[dlio_yaml_path, dlio_params_yaml_path],
+        parameters=[dlio_yaml_path, dlio_params_yaml_path, {'log_level': log_level}],
         remappings=[
             ('pointcloud', pointcloud_topic),
             ('imu', imu_topic),
@@ -60,18 +75,52 @@ def generate_launch_description():
             ('kf_cloud', 'dlio/odom_node/pointcloud/keyframe'),
             ('deskewed', 'dlio/odom_node/pointcloud/deskewed'),
         ],
+        condition=IfCondition(verbose)
     )
 
-    # DLIO Mapping Node
-    dlio_map_node = Node(
+    # DLIO Odometry Node (silent)
+    dlio_odom_node_silent = Node(
+        package='direct_lidar_inertial_odometry',
+        executable='dlio_odom_node',
+        output='log',
+        parameters=[dlio_yaml_path, dlio_params_yaml_path, {'log_level': log_level}],
+        remappings=[
+            ('pointcloud', pointcloud_topic),
+            ('imu', imu_topic),
+            ('odom', 'dlio/odom_node/odom'),
+            ('pose', 'dlio/odom_node/pose'),
+            ('path', 'dlio/odom_node/path'),
+            ('kf_pose', 'dlio/odom_node/keyframes'),
+            ('kf_cloud', 'dlio/odom_node/pointcloud/keyframe'),
+            ('deskewed', 'dlio/odom_node/pointcloud/deskewed'),
+        ],
+        condition=UnlessCondition(verbose)
+    )
+
+    # DLIO Mapping Node (verbose)
+    dlio_map_node_verbose = Node(
         package='direct_lidar_inertial_odometry',
         executable='dlio_map_node',
         output='screen',
-        parameters=[dlio_yaml_path, dlio_params_yaml_path],
+        parameters=[dlio_yaml_path, dlio_params_yaml_path, {'log_level': log_level}],
         remappings=[
             ('keyframes', 'dlio/odom_node/pointcloud/keyframe'),
             ('map', 'dlio/map_node/map'),
         ],
+        condition=IfCondition(verbose)
+    )
+
+    # DLIO Mapping Node (silent)
+    dlio_map_node_silent = Node(
+        package='direct_lidar_inertial_odometry',
+        executable='dlio_map_node',
+        output='log',
+        parameters=[dlio_yaml_path, dlio_params_yaml_path, {'log_level': log_level}],
+        remappings=[
+            ('keyframes', 'dlio/odom_node/pointcloud/keyframe'),
+            ('map', 'dlio/map_node/map'),
+        ],
+        condition=UnlessCondition(verbose)
     )
 
     # RViz node
@@ -89,7 +138,11 @@ def generate_launch_description():
         declare_rviz_arg,
         declare_pointcloud_topic_arg,
         declare_imu_topic_arg,
-        dlio_odom_node,
-        dlio_map_node,
+        declare_verbose_arg,
+        declare_log_level_arg,
+        dlio_odom_node_verbose,
+        dlio_odom_node_silent,
+        dlio_map_node_verbose,
+        dlio_map_node_silent,
         rviz_node
     ])
