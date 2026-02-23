@@ -363,4 +363,7 @@ private:
   double geo_abias_max_;
   double geo_gbias_max_;
 
+  double tf_pub_rate_;
+  rclcpp::Time last_tf_stamp_;
+
 };

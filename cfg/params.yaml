@@ -17,6 +17,7 @@
     frames/baselink: base_link
     frames/lidar: lidar
     frames/imu: imu
+    tfRate: 10.0
 
     map/waitUntilMove: true
     map/dense/filtered: false
